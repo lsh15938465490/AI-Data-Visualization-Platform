@@ -51,4 +51,4 @@ app.include_router(ws.router)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": settings.app_name}
+    return {"status": "ok", "name": settings.app_name, "llm": settings.llm_provider}

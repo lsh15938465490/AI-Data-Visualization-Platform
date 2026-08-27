@@ -83,9 +83,11 @@ async function load() {
 }
 
 async function create() {
-  await dashboardApi.create({ ...form });
+  const { data } = await dashboardApi.create({ ...form });
   dialogVisible.value = false;
+  ElMessage.success("仪表盘已创建");
   await load();
+  router.push(`/dashboards/${data.id}`);
 }
 
 async function generate() {
@@ -118,6 +120,7 @@ async function remove(id: number) {
     return;
   }
   await dashboardApi.remove(id);
+  ElMessage.success("仪表盘已删除");
   await load();
 }
 

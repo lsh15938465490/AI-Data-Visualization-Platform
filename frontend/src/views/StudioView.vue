@@ -29,7 +29,12 @@
           </el-form-item>
           <el-form-item label="指标 Y">
             <el-select v-model="yField" style="width: 100%" clearable>
-              <el-option v-for="col in numericColumns" :key="col" :label="col" :value="col" />
+              <el-option
+                v-for="col in columns"
+                :key="col"
+                :label="numericColumns.includes(col) ? `${col}（数值）` : `${col}（文本）`"
+                :value="col"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="聚合">
@@ -53,8 +58,16 @@
         <el-divider>对话式分析</el-divider>
         <div class="chat-log" ref="chatLogRef">
           <p v-for="(msg, index) in messages" :key="index" :class="msg.role">{{ msg.text }}</p>
+          <ThinkingIndicator v-if="thinking" />
         </div>
-        <el-input v-model="question" type="textarea" :rows="3" :placeholder="questionHint" />
+        <el-input
+          class="hint-textarea"
+          :class="{ 'is-empty': !question.trim() }"
+          v-model="question"
+          type="textarea"
+          :rows="3"
+          :placeholder="questionHint"
+        />
         <el-button style="margin-top: 8px" type="success" :disabled="!datasetId" :loading="aiLoading" @click="chat">发送</el-button>
       </el-card>
     </el-col>
@@ -80,6 +93,7 @@ import html2canvas from "html2canvas";
 import { aiApi, chartApi, datasetApi, type Dataset } from "../api";
 import ChartPanel from "../components/ChartPanel.vue";
 import ConclusionPanel from "../components/ConclusionPanel.vue";
+import ThinkingIndicator from "../components/ThinkingIndicator.vue";
 
 const route = useRoute();
 const datasets = ref<Dataset[]>([]);
@@ -98,6 +112,7 @@ const insight = ref("");
 const conclusion = ref("");
 const recSource = ref("");
 const aiLoading = ref(false);
+const thinking = ref(false);
 const recommendations = ref<any[]>([]);
 const anomalies = ref<any[]>([]);
 const messages = ref<{ role: string; text: string }[]>([]);
@@ -169,11 +184,12 @@ async function scrollChatToBottom() {
 async function chat() {
   if (!datasetId.value) return;
   let text = question.value.trim();
-  if (!text) {
+  if (!text || text === EXAMPLE_QUESTION) {
     text = EXAMPLE_QUESTION;
-    question.value = text;
+    question.value = "";
   }
   messages.value.push({ role: "user", text });
+  thinking.value = true;
   await scrollChatToBottom();
   aiLoading.value = true;
   try {
@@ -204,6 +220,7 @@ async function chat() {
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || "分析失败");
   } finally {
+    thinking.value = false;
     aiLoading.value = false;
     await scrollChatToBottom();
   }
@@ -244,5 +261,18 @@ onMounted(load);
   color: #64748b;
   font-size: 12px;
   margin: 0 0 8px;
+}
+.hint-textarea :deep(.el-textarea__inner::placeholder) {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8;
+  opacity: 1;
+}
+.hint-textarea.is-empty :deep(.el-textarea__inner) {
+  color: #94a3b8;
+  -webkit-text-fill-color: #94a3b8;
+}
+.hint-textarea:not(.is-empty) :deep(.el-textarea__inner) {
+  color: #0f172a;
+  -webkit-text-fill-color: #0f172a;
 }
 </style>

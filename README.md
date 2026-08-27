@@ -35,13 +35,17 @@ npm run dev
 
 演示账号：`alice`　密码：`secret123`
 
-可选环境变量（后端工作目录下的 `.env`）：
+可选环境变量（复制 `backend/.env.example` 为 `backend/.env`）。**优先使用 DeepSeek**：
 
 ```
-OPENAI_API_KEY=
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
+DEEPSEEK_API_KEY=sk-你的密钥
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+DEEPSEEK_MODEL=deepseek-chat
 ```
+
+也支持变量名 `DEEPSEEK_KEY_API` 或 `deepseek_key_api`。填好后需重启后端。配置成功时 `GET /api/health` 的 `llm` 字段为 `deepseek`。
+
+未配 DeepSeek 时仍可用 `OPENAI_API_KEY` 走其它 OpenAI 兼容接口。
 
 ## 测试
 

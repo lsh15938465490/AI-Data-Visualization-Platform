@@ -68,8 +68,11 @@ watch(
   { deep: true }
 );
 
-function onClick(params: { name?: string }) {
-  if (params?.name) emit("click", { name: String(params.name) });
+function onClick(params: { name?: string; data?: { name?: string }; value?: unknown }) {
+  const name = params?.name ?? params?.data?.name;
+  if (name !== undefined && name !== null && String(name)) {
+    emit("click", { name: String(name) });
+  }
 }
 
 onMounted(() => {
@@ -89,6 +92,9 @@ onMounted(() => {
     }
   });
   observer.observe(rootRef.value);
+  window.setTimeout(() => {
+    if (!ready.value) ready.value = true;
+  }, 400);
 });
 
 onBeforeUnmount(() => {

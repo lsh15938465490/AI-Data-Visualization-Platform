@@ -266,17 +266,17 @@ def sanitize_recommendations(df: pd.DataFrame, items: list[Any]) -> list[dict[st
 
 
 async def llm_complete(prompt: str, temperature: float = 0.2) -> str | None:
-    if not settings.openai_api_key:
+    if not settings.llm_api_key:
         return None
-    url = settings.openai_base_url.rstrip("/") + "/chat/completions"
-    headers = {"Authorization": f"Bearer {settings.openai_api_key}"}
+    url = settings.llm_base_url + "/chat/completions"
+    headers = {"Authorization": f"Bearer {settings.llm_api_key}"}
     payload = {
-        "model": settings.openai_model,
+        "model": settings.llm_model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
     }
     try:
-        async with httpx.AsyncClient(timeout=25) as client:
+        async with httpx.AsyncClient(timeout=40) as client:
             resp = await client.post(url, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()

@@ -52,6 +52,18 @@ def test_health(client):
     resp = client.get("/api/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
+    assert resp.json()["llm"] in {"none", "deepseek", "openai"}
+
+
+def test_deepseek_key_alias(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_KEY_API", "sk-test-deepseek")
+    from app.config import Settings
+
+    conf = Settings(_env_file=None)
+    assert conf.llm_provider == "deepseek"
+    assert conf.llm_model == "deepseek-chat"
+    assert "deepseek.com" in conf.llm_base_url
+    assert conf.llm_api_key == "sk-test-deepseek"
 
 
 def test_login_and_me(client):
@@ -143,8 +155,9 @@ def test_upload_sample_csv_and_excel(client):
     assert csv_resp.status_code == 200, csv_resp.text
     csv_body = csv_resp.json()
     assert csv_body["row_count"] == 24
-    assert any("channel" in col for col in csv_body["columns"])
-    assert any("product" in col for col in csv_body["columns"])
+    cols = csv_body["columns"]
+    assert any(name in cols for name in ("渠道", "channel"))
+    assert any(name in cols for name in ("产品", "product"))
 
     with xlsx_file.open("rb") as fh:
         xlsx_resp = client.post(
@@ -162,8 +175,9 @@ def test_upload_sample_csv_and_excel(client):
     assert xlsx_resp.status_code == 200, xlsx_resp.text
     xlsx_body = xlsx_resp.json()
     assert xlsx_body["row_count"] == 15
-    assert any("platform" in col for col in xlsx_body["columns"])
-    assert any("impressions" in col for col in xlsx_body["columns"])
+    xcols = xlsx_body["columns"]
+    assert any(name in xcols for name in ("平台", "platform"))
+    assert any(name in xcols for name in ("曝光量", "impressions"))
     assert csv_body["columns"] != xlsx_body["columns"]
 
 
@@ -332,5 +346,25 @@ def test_llm_recommend_then_dashboard(client, tmp_path, monkeypatch):
     assert board.json()["conclusion"]
     assert len(board.json()["chart_ids"]) >= 1
     assert board.json()["layout"][0]["w"] == 12
+
+
+def test_recommend_rules_without_llm(client, tmp_path, monkeypatch):
+    async def no_llm(prompt: str, temperature: float = 0.2):
+        return None
+
+    monkeypatch.setattr("app.services.ai_service.llm_complete", no_llm)
+    dataset_id = _upload_sales(client, tmp_path)
+    rec = client.get("/api/ai/recommend", headers=auth_header(), params={"dataset_id": dataset_id})
+    assert rec.status_code == 200
+    body = rec.json()
+    assert body["source"] == "rules"
+    assert body["recommendations"]
+    assert body["conclusion"]
+
+
+def test_public_dashboard_invalid_token(client):
+    resp = client.get("/api/public/dashboards/not-a-token")
+    assert resp.status_code == 404
+    assert "title" not in (resp.json() if isinstance(resp.json(), dict) else {})
 
 
