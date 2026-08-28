@@ -11,6 +11,7 @@
         </el-form-item>
         <el-button type="primary" native-type="submit" :loading="loading" style="width: 100%">登录</el-button>
         <p class="credential-hint">登录账号：{{ demoUsername }}　密码：{{ demoPassword }}</p>
+        <p class="demo-note">当前为演示账号，数据仅本地演示。</p>
       </el-form>
     </el-card>
   </div>
@@ -38,7 +39,7 @@ async function onSubmit() {
     auth.setSession(data.access_token, data.user);
     router.push("/datasets");
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || "登录失败");
+    ElMessage({ message: error.response?.data?.detail || "登录失败", type: "error", duration: 4000, showClose: true });
   } finally {
     loading.value = false;
   }
@@ -51,5 +52,10 @@ async function onSubmit() {
   color: #64748b;
   font-size: 13px;
   line-height: 1.6;
+}
+.demo-note {
+  margin: 8px 0 0;
+  color: #94a3b8;
+  font-size: 12px;
 }
 </style>

@@ -15,6 +15,7 @@ const router = createRouter({
         { path: "datasets", component: () => import("../views/DatasetsView.vue") },
         { path: "ask", component: () => import("../views/AskView.vue") },
         { path: "studio", component: () => import("../views/StudioView.vue") },
+        { path: "charts", component: () => import("../views/ChartsView.vue") },
         { path: "dashboards", component: () => import("../views/DashboardsView.vue") },
         { path: "dashboards/:id", component: () => import("../views/DashboardDetailView.vue") },
       ],

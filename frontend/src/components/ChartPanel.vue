@@ -68,7 +68,7 @@ watch(
   { deep: true }
 );
 
-function onClick(params: { name?: string; data?: { name?: string }; value?: unknown }) {
+function onClick(params: any) {
   const name = params?.name ?? params?.data?.name;
   if (name !== undefined && name !== null && String(name)) {
     emit("click", { name: String(name) });
@@ -104,8 +104,15 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.chart-wrap,
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+}
 .chart-box {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   min-height: 280px;

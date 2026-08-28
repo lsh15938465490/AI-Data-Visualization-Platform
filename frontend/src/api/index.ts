@@ -84,6 +84,7 @@ export const chartApi = {
     http.get<ChartItem>(`/charts/${id}`, {
       params: { filter_field: filter?.field || "", filter_value: filter?.value || "" },
     }),
+  update: (id: number, payload: Record<string, unknown>) => http.patch<ChartItem>(`/charts/${id}`, payload),
   remove: (id: number) => http.delete(`/charts/${id}`),
 };
 

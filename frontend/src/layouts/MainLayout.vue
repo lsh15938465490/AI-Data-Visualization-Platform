@@ -2,16 +2,41 @@
   <el-container class="layout">
     <el-aside width="220px" class="aside">
       <div class="brand">AI 可视化平台</div>
-      <el-menu :router="true" :default-active="route.path" background-color="#0f172a" text-color="#cbd5e1" active-text-color="#60a5fa">
-        <el-menu-item index="/datasets">数据集</el-menu-item>
-        <el-menu-item index="/ask">AI 问答</el-menu-item>
-        <el-menu-item index="/studio">图表工作室</el-menu-item>
-        <el-menu-item index="/dashboards">仪表盘</el-menu-item>
+      <el-menu
+        :router="true"
+        :default-active="route.path.startsWith('/dashboards') ? '/dashboards' : route.path"
+        background-color="#0f172a"
+        text-color="#cbd5e1"
+        active-text-color="#ffffff"
+      >
+        <el-menu-item index="/datasets">
+          <el-icon><FolderOpened /></el-icon>
+          <span>数据集</span>
+        </el-menu-item>
+        <el-menu-item index="/ask">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>AI 问答</span>
+        </el-menu-item>
+        <el-menu-item index="/studio">
+          <el-icon><DataAnalysis /></el-icon>
+          <span>图表工作室</span>
+        </el-menu-item>
+        <el-menu-item index="/charts">
+          <el-icon><PieChart /></el-icon>
+          <span>我的图表</span>
+        </el-menu-item>
+        <el-menu-item index="/dashboards">
+          <el-icon><Monitor /></el-icon>
+          <span>仪表盘</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container class="body">
       <el-header class="header">
-        <span>{{ auth.user?.username }}</span>
+        <div class="user-block">
+          <span class="user-name">演示账号</span>
+          <span class="demo-hint">当前为演示账号，数据仅本地演示</span>
+        </div>
         <el-button link type="primary" @click="logout">退出</el-button>
       </el-header>
       <el-main class="main">
@@ -24,6 +49,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from "vue";
 import { ElNotification } from "element-plus";
+import { ChatDotRound, DataAnalysis, FolderOpened, Monitor, PieChart } from "@element-plus/icons-vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
@@ -71,6 +97,17 @@ onBeforeUnmount(() => socket?.close());
   font-weight: 700;
   letter-spacing: 0.5px;
 }
+.aside :deep(.el-menu-item) {
+  margin: 4px 10px;
+  border-radius: 8px;
+  height: 44px;
+}
+.aside :deep(.el-menu-item.is-active) {
+  background: #2563eb !important;
+  color: #fff !important;
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
 .body {
   min-width: 0;
   min-height: 0;
@@ -85,6 +122,20 @@ onBeforeUnmount(() => socket?.close());
   flex-shrink: 0;
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
+}
+.user-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.3;
+}
+.user-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+.demo-hint {
+  font-size: 12px;
+  color: #64748b;
 }
 .main {
   min-height: 0;

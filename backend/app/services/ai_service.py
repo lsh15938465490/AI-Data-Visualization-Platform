@@ -398,7 +398,7 @@ async def analyze_dataframe(df: pd.DataFrame, question: str, style: dict[str, An
     spec = infer_spec(df, question)
     grouped = aggregate_series(df, spec["x_field"], spec["y_field"], spec["aggregation"])
     option = apply_style(
-        build_echarts_option(spec["title"], spec["chart_type"], grouped, spec["x_field"]),
+        build_echarts_option(spec["title"], spec["chart_type"], grouped, spec["x_field"], spec.get("y_field") or ""),
         style,
         spec["title"],
     )
@@ -433,7 +433,7 @@ async def chat_dataframe(df: pd.DataFrame, message: str, spec: dict[str, Any]) -
     if tweak_reply:
         grouped = aggregate_series(df, updated["x_field"], updated["y_field"], updated["aggregation"])
         option = apply_style(
-            build_echarts_option(updated["title"], updated["chart_type"], grouped, updated["x_field"]),
+            build_echarts_option(updated["title"], updated["chart_type"], grouped, updated["x_field"], updated.get("y_field") or ""),
             updated.get("style"),
             updated["title"],
         )

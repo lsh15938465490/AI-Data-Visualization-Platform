@@ -43,12 +43,21 @@ class ChartCreate(BaseModel):
     x_field: str = ""
     y_field: str = ""
     aggregation: str = "sum"
+    save: bool = True
 
 
 class ChartStyle(BaseModel):
     color: str = ""
     legend: str = "bottom"
     title: str = ""
+
+
+class ChartUpdate(BaseModel):
+    title: Optional[str] = None
+    chart_type: Optional[str] = None
+    x_field: Optional[str] = None
+    y_field: Optional[str] = None
+    aggregation: Optional[str] = None
 
 
 class ChartOut(BaseModel):

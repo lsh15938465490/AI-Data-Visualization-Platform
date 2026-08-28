@@ -1,20 +1,29 @@
 <template>
   <div class="page-header">
     <h2>仪表盘</h2>
-    <div>
+    <div class="header-actions">
       <el-button @click="genVisible = true">从数据集一键生成</el-button>
       <el-button type="primary" @click="dialogVisible = true">新建仪表盘</el-button>
     </div>
   </div>
-  <el-row :gutter="16">
-    <el-col v-for="item in dashboards" :key="item.id" :span="8">
-      <el-card shadow="hover" class="board-card">
+  <el-empty
+    v-if="!dashboards.length"
+    description="暂无仪表盘，点击「新建仪表盘」或者从数据集一键生成。"
+  />
+  <el-row v-else :gutter="20" class="board-grid">
+    <el-col v-for="item in dashboards" :key="item.id" :span="8" class="board-col">
+      <el-card shadow="never" class="board-card">
         <div class="card-kicker">{{ item.chart_ids.length }} 张图表</div>
         <h3>{{ item.title }}</h3>
-        <p class="desc">{{ item.conclusion || item.description || "暂无分析结论" }}</p>
+        <el-tooltip placement="top" :show-after="200" popper-class="board-card-tip">
+          <template #content>
+            <p class="board-tip-text">{{ item.conclusion || item.description || "暂无分析结论" }}</p>
+          </template>
+          <p class="desc">{{ item.conclusion || item.description || "暂无分析结论" }}</p>
+        </el-tooltip>
         <div class="card-actions">
           <el-button type="primary" link @click="$router.push(`/dashboards/${item.id}`)">打开看板</el-button>
-          <el-button type="danger" link @click="remove(item.id)">删除</el-button>
+          <el-button link class="btn-delete" @click="remove(item.id)">删除</el-button>
         </div>
       </el-card>
     </el-col>
@@ -36,7 +45,7 @@
     </el-form>
     <template #footer>
       <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="create">创建</el-button>
+      <el-button type="primary" :loading="creating" @click="create">创建</el-button>
     </template>
   </el-dialog>
 
@@ -61,8 +70,9 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessageBox } from "element-plus";
 import { chartApi, dashboardApi, datasetApi, type ChartItem, type DashboardItem, type Dataset } from "../api";
+import { toastError, toastSuccess } from "../utils/notify";
 
 const router = useRouter();
 const dashboards = ref<DashboardItem[]>([]);
@@ -71,6 +81,7 @@ const datasets = ref<Dataset[]>([]);
 const dialogVisible = ref(false);
 const genVisible = ref(false);
 const genLoading = ref(false);
+const creating = ref(false);
 const form = reactive({ title: "销售看板", description: "", chart_ids: [] as number[] });
 const genForm = reactive({ dataset_id: undefined as number | undefined, title: "" });
 
@@ -83,11 +94,18 @@ async function load() {
 }
 
 async function create() {
-  const { data } = await dashboardApi.create({ ...form });
-  dialogVisible.value = false;
-  ElMessage.success("仪表盘已创建");
-  await load();
-  router.push(`/dashboards/${data.id}`);
+  creating.value = true;
+  try {
+    const { data } = await dashboardApi.create({ ...form });
+    dialogVisible.value = false;
+    toastSuccess("仪表盘已创建");
+    await load();
+    router.push(`/dashboards/${data.id}`);
+  } catch (error: any) {
+    toastError(error.response?.data?.detail || "创建失败");
+  } finally {
+    creating.value = false;
+  }
 }
 
 async function generate() {
@@ -99,11 +117,11 @@ async function generate() {
       title: genForm.title,
     });
     genVisible.value = false;
-    ElMessage.success("看板已生成");
+    toastSuccess("看板已生成");
     await load();
     router.push(`/dashboards/${data.id}`);
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || "生成失败");
+    toastError(error.response?.data?.detail || "生成失败");
   } finally {
     genLoading.value = false;
   }
@@ -111,7 +129,7 @@ async function generate() {
 
 async function remove(id: number) {
   try {
-    await ElMessageBox.confirm("确定删除该仪表盘吗？", "删除确认", {
+    await ElMessageBox.confirm("确定删除该仪表盘吗？删除后不可恢复。", "删除确认", {
       type: "warning",
       confirmButtonText: "确定删除",
       cancelButtonText: "取消",
@@ -119,17 +137,41 @@ async function remove(id: number) {
   } catch {
     return;
   }
-  await dashboardApi.remove(id);
-  ElMessage.success("仪表盘已删除");
-  await load();
+  try {
+    await dashboardApi.remove(id);
+    toastSuccess("仪表盘已删除");
+    await load();
+  } catch (error: any) {
+    toastError(error.response?.data?.detail || "删除失败");
+  }
 }
 
 onMounted(load);
 </script>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+.board-grid {
+  align-items: stretch;
+}
+.board-col {
+  margin-bottom: 24px;
+}
+.board-card {
+  height: 100%;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.board-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover) !important;
+}
 .board-card h3 {
   margin: 4px 0 8px;
+  font-weight: 700;
+  color: #0f172a;
 }
 .card-kicker {
   font-size: 12px;
@@ -138,16 +180,35 @@ onMounted(load);
 }
 .desc {
   min-height: 48px;
-  color: #64748b;
+  max-height: 60px;
+  color: #94a3b8;
   font-size: 13px;
+  font-weight: 400;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: pre-wrap;
+  cursor: default;
 }
 .card-actions {
   display: flex;
   justify-content: space-between;
+  margin-top: 8px;
+}
+</style>
+
+<style>
+.board-card-tip {
+  max-width: min(340px, calc((100vw - 280px) / 3 - 24px)) !important;
+}
+.board-card-tip .board-tip-text {
+  margin: 0;
+  max-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+  font-size: 12px;
 }
 </style>

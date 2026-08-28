@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Chart, Dataset, User
-from app.schemas import ChartCreate, ChartOut, ChartStyle
+from app.models import Chart, Dataset, User, utcnow
+from app.schemas import ChartCreate, ChartOut, ChartStyle, ChartUpdate
 from app.security import get_current_user
 from app.services.data_service import chart_style, chart_to_option, load_dataframe
 
@@ -57,10 +57,24 @@ def create_chart(payload: ChartCreate, db: Session = Depends(get_db), current: U
         option = chart_to_option(chart, df)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    db.add(chart)
-    db.commit()
-    db.refresh(chart)
-    return _to_out(chart, option)
+    if payload.save:
+        db.add(chart)
+        db.commit()
+        db.refresh(chart)
+        return _to_out(chart, option)
+    return ChartOut(
+        id=0,
+        title=payload.title,
+        chart_type=payload.chart_type,
+        x_field=payload.x_field,
+        y_field=payload.y_field,
+        aggregation=payload.aggregation,
+        insight=chart.insight or "",
+        dataset_id=dataset.id,
+        created_at=utcnow(),
+        option=option,
+        style=chart_style(chart),
+    )
 
 
 @router.get("", response_model=list[ChartOut])
@@ -105,6 +119,26 @@ def update_style(
     db.commit()
     db.refresh(chart)
     return _to_out(chart, _option_for(chart, db))
+
+
+@router.patch("/{chart_id}", response_model=ChartOut)
+def update_chart(chart_id: int, payload: ChartUpdate, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    chart = db.query(Chart).filter(Chart.id == chart_id, Chart.owner_id == current.id).first()
+    if not chart:
+        raise HTTPException(status_code=404, detail="图表不存在")
+    updates = payload.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(chart, key, value)
+    dataset = db.query(Dataset).filter(Dataset.id == chart.dataset_id, Dataset.owner_id == current.id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="数据集不存在")
+    try:
+        option = chart_to_option(chart, load_dataframe(dataset))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(chart)
+    return _to_out(chart, option)
 
 
 @router.delete("/{chart_id}")

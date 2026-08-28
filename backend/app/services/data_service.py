@@ -161,22 +161,48 @@ def apply_filter(df: pd.DataFrame, field: str, value: str) -> pd.DataFrame:
     return df[series == str(value)].copy()
 
 
+CHART_PALETTE = [
+    "#2563eb",
+    "#0ea5e9",
+    "#10b981",
+    "#f59e0b",
+    "#8b5cf6",
+    "#f43f5e",
+    "#14b8a6",
+    "#eab308",
+    "#6366f1",
+    "#fb7185",
+]
+
+
 def apply_style(option: dict[str, Any], style: dict[str, Any] | None, title: str) -> dict[str, Any]:
     style = style or {}
     color = style.get("color") or "#3b82f6"
     legend = style.get("legend") or "bottom"
     display_title = style.get("title") or title
     option["title"] = {"text": display_title, "left": "left", "top": 8, "textStyle": {"fontSize": 14, "fontWeight": 600}}
-    option["color"] = [color]
+    series_list = option.get("series") or []
+    is_pie = any(item.get("type") == "pie" for item in series_list)
+    option["color"] = CHART_PALETTE if is_pie else [color]
     if legend == "hidden":
         option["legend"] = {"show": False}
     elif legend == "top":
         option["legend"] = {"top": 28, "left": "center"}
     else:
         option["legend"] = {"bottom": 0}
-    for series in option.get("series") or []:
+    for series in series_list:
         series["progressive"] = 400
         series["progressiveThreshold"] = 200
+        if series.get("type") == "pie":
+            pie_names = []
+            for index, row in enumerate(series.get("data") or []):
+                if not isinstance(row, dict):
+                    continue
+                pie_names.append(str(row.get("name") or ""))
+                row["itemStyle"] = {**(row.get("itemStyle") or {}), "color": CHART_PALETTE[index % len(CHART_PALETTE)]}
+            if pie_names and legend != "hidden":
+                option["legend"] = {**(option.get("legend") or {}), "data": pie_names}
+            continue
         if series.get("type") in {"bar", "line"}:
             series["itemStyle"] = {"color": color}
             series["lineStyle"] = {"color": color}
@@ -200,40 +226,57 @@ def chart_style(chart: Chart) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def build_echarts_option(title: str, chart_type: str, grouped: pd.DataFrame, x_field: str) -> dict[str, Any]:
+def build_echarts_option(
+    title: str,
+    chart_type: str,
+    grouped: pd.DataFrame,
+    x_field: str,
+    y_field: str = "",
+) -> dict[str, Any]:
     categories = grouped[x_field].astype(str).tolist()
     values = [None if pd.isna(v) else round(float(v), 2) for v in grouped["value"].tolist()]
     chart_type = chart_type.lower()
+    series_name = y_field or title
     option: dict[str, Any] = {
         "title": {"text": title, "left": "left", "top": 8, "textStyle": {"fontSize": 14, "fontWeight": 600, "color": "#0f172a"}},
         "tooltip": {
             "trigger": "axis" if chart_type != "pie" else "item",
             "axisPointer": {"type": "shadow" if chart_type == "bar" else "line"},
         },
-        "grid": {"left": 16, "right": 16, "top": 52, "bottom": 48, "containLabel": True},
-        "legend": {"bottom": 0, "data": [title]},
+        "grid": {"left": 24, "right": 24, "top": 52, "bottom": 56, "containLabel": True},
+        "legend": {"bottom": 0, "data": [series_name]},
     }
     if chart_type == "pie":
+        option["color"] = CHART_PALETTE
+        option["legend"] = {"bottom": 0, "data": categories}
         option["series"] = [
             {
                 "type": "pie",
+                "name": series_name,
                 "radius": ["35%", "65%"],
-                "data": [{"name": name, "value": value} for name, value in zip(categories, values)],
+                "data": [
+                    {
+                        "name": name,
+                        "value": value,
+                        "itemStyle": {"color": CHART_PALETTE[index % len(CHART_PALETTE)]},
+                    }
+                    for index, (name, value) in enumerate(zip(categories, values))
+                ],
                 "progressive": 400,
             }
         ]
         return option
     if chart_type == "scatter":
-        option["xAxis"] = {"type": "category", "data": categories}
-        option["yAxis"] = {"type": "value"}
-        option["series"] = [{"type": "scatter", "symbolSize": 12, "data": values, "progressive": 400}]
+        option["xAxis"] = _category_axis(x_field, categories)
+        option["yAxis"] = {"type": "value", "name": series_name, "nameLocation": "middle", "nameGap": 48}
+        option["series"] = [{"type": "scatter", "name": series_name, "symbolSize": 12, "data": values, "progressive": 400}]
         return option
-    option["xAxis"] = {"type": "category", "data": categories}
-    option["yAxis"] = {"type": "value"}
+    option["xAxis"] = _category_axis(x_field, categories)
+    option["yAxis"] = {"type": "value", "name": series_name, "nameLocation": "middle", "nameGap": 48}
     option["series"] = [
         {
             "type": "line" if chart_type == "line" else "bar",
-            "name": title,
+            "name": series_name,
             "data": values,
             "smooth": chart_type == "line",
             "barMaxWidth": 36,
@@ -245,6 +288,22 @@ def build_echarts_option(title: str, chart_type: str, grouped: pd.DataFrame, x_f
     return option
 
 
+def _category_axis(x_field: str, categories: list[str]) -> dict[str, Any]:
+    return {
+        "type": "category",
+        "name": x_field,
+        "nameLocation": "end",
+        "nameGap": 12,
+        "data": categories,
+        "axisLabel": {
+            "interval": 0,
+            "hideOverlap": True,
+            "width": 100,
+            "overflow": "none",
+        },
+    }
+
+
 def chart_to_option(
     chart: Chart,
     df: pd.DataFrame,
@@ -253,7 +312,7 @@ def chart_to_option(
 ) -> dict[str, Any]:
     working = apply_filter(df, filter_field, filter_value)
     grouped = aggregate_series(working, chart.x_field, chart.y_field, chart.aggregation)
-    option = build_echarts_option(chart.title, chart.chart_type, grouped, chart.x_field)
+    option = build_echarts_option(chart.title, chart.chart_type, grouped, chart.x_field, chart.y_field)
     return apply_style(option, chart_style(chart), chart.title)
 
 
