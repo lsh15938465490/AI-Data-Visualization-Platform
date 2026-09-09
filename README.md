@@ -28,7 +28,7 @@ npm install
 npm run dev
 ```
 
-浏览器打开 `http://localhost:5173`，使用登录页展示的演示账号登录后，可上传测试数据集：
+浏览器打开 `http://localhost:5174`，使用登录页展示的演示账号登录后，可上传测试数据集：
 
 - CSV：`backend/sample_data/sales.csv`（区域产品销售，字段为英文（中文））
 - Excel：`backend/sample_data/ad_campaign（广告投放）.xlsx`（广告投放效果，字段为英文（中文））
