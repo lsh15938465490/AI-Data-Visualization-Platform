@@ -47,6 +47,25 @@ DEEPSEEK_MODEL=deepseek-chat
 
 未配 DeepSeek 时仍可用 `OPENAI_API_KEY` 走其它 OpenAI 兼容接口。
 
+## Docker
+
+在项目根目录执行：
+
+```bash
+docker compose up --build
+```
+
+浏览器打开 `http://localhost:5174`。前端由 Nginx 提供，`/api` 反代到容器内后端 `8001`（不对外暴露）。SQLite 与上传文件保存在 Docker 卷 `viz-data`。
+
+大模型密钥可放在仓库根目录 `.env`（不要提交），或 `backend/.env`：
+
+```
+DEEPSEEK_API_KEY=sk-你的密钥
+CORS_ORIGINS=http://localhost:5174
+```
+
+阿里云若用域名访问，把 `CORS_ORIGINS` 改成 `https://viz.你的域名.com`，并把 compose 里前端端口映射改成 `80:80` 或再套一层主机 Nginx。
+
 ## 测试
 
 ```bash
