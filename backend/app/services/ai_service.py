@@ -337,19 +337,21 @@ def detect_anomalies(df: pd.DataFrame, spec: dict[str, Any]) -> list[dict[str, A
     if not std:
         return []
     alerts = []
+    dim_col = x_field or grouped.columns[0]
     for _, row in grouped.iterrows():
         z = (float(row["value"]) - float(mean)) / float(std)
         if abs(z) >= 1.5:
             alerts.append(
                 {
-                    "dimension": str(row[x_field or grouped.columns[0]]),
+                    "dimension": str(row[dim_col]),
                     "metric": y_field,
                     "value": round(float(row["value"]), 2),
                     "zscore": round(z, 2),
-                    "message": f"{row[x_field or grouped.columns[0]]} 的 {y_field}={round(float(row['value']), 2)}，偏离均值 {z:.1f} 个标准差",
+                    "message": f"{row[dim_col]} 的 {y_field}={round(float(row['value']), 2)}，偏离均值 {z:.1f} 个标准差",
                 }
             )
-    return alerts
+    alerts.sort(key=lambda item: abs(float(item["zscore"])), reverse=True)
+    return alerts[:5]
 
 
 COLOR_WORDS = {

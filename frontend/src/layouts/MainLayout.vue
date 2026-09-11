@@ -71,9 +71,17 @@ onMounted(() => {
   socket.onmessage = (event) => {
     const payload = JSON.parse(event.data);
     if (payload.type === "anomaly") {
-      for (const item of payload.items || []) {
-        ElNotification({ title: "指标异常告警", message: item.message, type: "warning" });
-      }
+      const items = payload.items || [];
+      if (!items.length) return;
+      const sample = items[0]?.message || "发现指标偏离";
+      const message =
+        items.length === 1 ? sample : `${sample}（共 ${items.length} 条，已在页面中汇总）`;
+      ElNotification({
+        title: "指标异常告警",
+        message,
+        type: "warning",
+        duration: 4000,
+      });
     }
   };
 });

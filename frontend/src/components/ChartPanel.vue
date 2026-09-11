@@ -40,25 +40,39 @@ const localOption = ref<Record<string, unknown> | null>(props.option || null);
 let observer: IntersectionObserver | null = null;
 let worker: Worker | null = null;
 
+function separateLegendAndZoom(option: Record<string, unknown>) {
+  const zooms = Array.isArray(option.dataZoom) ? (option.dataZoom as Record<string, unknown>[]) : [];
+  const hasSlider = zooms.some((item) => item?.type === "slider");
+  const legend = option.legend as Record<string, unknown> | undefined;
+  if (!hasSlider || !legend || legend.show === false || legend.top !== undefined) return option;
+  return {
+    ...option,
+    legend: { ...legend, bottom: 32 },
+    dataZoom: zooms.map((item) => (item?.type === "slider" ? { ...item, bottom: 6, showDetail: false } : item)),
+    grid: { ...((option.grid as Record<string, unknown>) || {}), bottom: 88 },
+  };
+}
+
 function applyOption(option: Record<string, unknown> | null | undefined) {
   if (!option) {
     localOption.value = null;
     return;
   }
-  localOption.value = option;
+  const laidOut = separateLegendAndZoom(option);
+  localOption.value = laidOut;
   if (typeof Worker === "undefined") return;
   try {
     worker?.terminate();
     worker = new Worker(new URL("../workers/downsample.ts", import.meta.url), { type: "module" });
     worker.onmessage = (event: MessageEvent<Record<string, unknown>>) => {
-      if (event.data) localOption.value = event.data;
+      if (event.data) localOption.value = separateLegendAndZoom(event.data);
     };
     worker.onerror = () => {
-      localOption.value = option;
+      localOption.value = laidOut;
     };
-    worker.postMessage({ option });
+    worker.postMessage({ option: laidOut });
   } catch {
-    localOption.value = option;
+    localOption.value = laidOut;
   }
 }
 

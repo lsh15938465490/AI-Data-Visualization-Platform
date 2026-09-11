@@ -1,101 +1,116 @@
 <template>
   <div class="studio-page" v-loading="pageLoading || loadingMeta" element-loading-text="正在加载默认数据…">
-  <div class="page-header">
-    <h2>图表工作室</h2>
-  </div>
-  <el-row :gutter="20">
-    <el-col :span="8">
-      <el-card class="config-card">
-        <el-form label-position="top" class="studio-form">
-          <p class="group-title">数据集</p>
+    <div class="page-header">
+      <h2>图表工作室</h2>
+    </div>
+    <div class="studio-body">
+      <el-card class="pane config-card">
+        <el-form label-position="left" label-width="72px" class="studio-form" @submit.prevent>
           <el-form-item label="数据集">
             <el-select v-model="datasetId" placeholder="选择数据集" style="width: 100%" :loading="loadingMeta">
               <el-option v-for="item in datasets" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
           </el-form-item>
-          <el-divider />
-          <p class="group-title">图表设置</p>
           <el-form-item label="标题">
             <el-input v-model="title" />
           </el-form-item>
-          <el-form-item label="图表类型">
-            <el-select v-model="chartType" style="width: 100%">
-              <el-option label="柱状图" value="bar" />
-              <el-option label="折线图" value="line" />
-              <el-option label="饼图" value="pie" />
-              <el-option label="散点图" value="scatter" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="维度 X">
-            <el-select v-model="xField" style="width: 100%">
-              <el-option v-for="col in columns" :key="col" :label="col" :value="col" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="指标 Y">
-            <el-select v-model="yField" placeholder="请选择数值指标" style="width: 100%" clearable>
-              <el-option v-for="col in yMetricColumns" :key="col" :label="col" :value="col" />
-            </el-select>
-          </el-form-item>
-          <el-divider />
-          <p class="group-title">聚合设置</p>
-          <el-form-item label="聚合">
-            <el-select v-model="aggregation" style="width: 100%">
-              <el-option label="求和" value="sum" />
-              <el-option label="平均" value="mean" />
-              <el-option label="计数" value="count" />
-              <el-option label="最大" value="max" />
-              <el-option label="最小" value="min" />
-            </el-select>
-          </el-form-item>
+          <div class="form-grid">
+            <el-form-item label="图表类型">
+              <el-select v-model="chartType" style="width: 100%">
+                <el-option label="柱状图" value="bar" />
+                <el-option label="折线图" value="line" />
+                <el-option label="饼图" value="pie" />
+                <el-option label="散点图" value="scatter" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="聚合">
+              <el-select v-model="aggregation" style="width: 100%">
+                <el-option label="求和" value="sum" />
+                <el-option label="平均" value="mean" />
+                <el-option label="计数" value="count" />
+                <el-option label="最大" value="max" />
+                <el-option label="最小" value="min" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="维度 X">
+              <el-select v-model="xField" style="width: 100%">
+                <el-option v-for="col in columns" :key="col" :label="col" :value="col" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="指标 Y">
+              <el-select v-model="yField" placeholder="请选择数值指标" style="width: 100%" clearable>
+                <el-option v-for="col in yMetricColumns" :key="col" :label="col" :value="col" />
+              </el-select>
+            </el-form-item>
+          </div>
           <div class="form-actions">
             <el-button @click="resetForm">重置</el-button>
             <el-button :disabled="!canBuild" :loading="previewing" @click="previewChart">预览</el-button>
             <el-button type="primary" :disabled="!canBuild" :loading="saving" @click="createChart(true)">生成并保存</el-button>
           </div>
         </el-form>
-        <el-divider>智能推荐</el-divider>
-        <p class="hint">先分析字段类型、空值与分布，再给出图表建议（配置了大模型时会走 API）。</p>
-        <el-space wrap>
-          <el-tag v-for="item in recommendations" :key="item.reason" class="rec" @click="applyRec(item)">
-            {{ item.title || item.reason }}
-          </el-tag>
-        </el-space>
-        <el-divider>对话式分析</el-divider>
-        <div class="chat-log" ref="chatLogRef">
-          <p v-for="(msg, index) in messages" :key="index" :class="msg.role">{{ msg.text }}</p>
-          <ThinkingIndicator v-if="thinking" />
+        <div class="studio-ai">
+          <p class="group-title">智能推荐</p>
+          <div class="rec-wrap">
+            <el-empty v-if="!recommendations.length" description="选择数据集后显示推荐" :image-size="40" />
+            <el-space v-else wrap>
+              <el-tag v-for="item in recommendations" :key="item.reason" class="rec" @click="applyRec(item)">
+                {{ item.title || item.reason }}
+              </el-tag>
+            </el-space>
+          </div>
+          <p class="group-title">对话式分析</p>
+          <div class="chat-log" ref="chatLogRef">
+            <p v-if="!messages.length && !thinking" class="chat-placeholder">{{ questionHint }}</p>
+            <p v-for="(msg, index) in messages" :key="index" :class="msg.role">{{ msg.text }}</p>
+            <ThinkingIndicator v-if="thinking" />
+          </div>
+          <div class="composer">
+            <el-input
+              class="hint-textarea"
+              :class="{ 'is-empty': !question.trim() }"
+              v-model="question"
+              type="textarea"
+              :rows="2"
+              :placeholder="questionHint"
+              @keydown.enter.exact.prevent="chat"
+            />
+            <el-button class="send-btn" type="success" :disabled="!datasetId" :loading="aiLoading" @click="chat">发送</el-button>
+          </div>
         </div>
-        <el-input
-          class="hint-textarea"
-          :class="{ 'is-empty': !question.trim() }"
-          v-model="question"
-          type="textarea"
-          :rows="3"
-          :placeholder="questionHint"
-        />
-        <el-button style="margin-top: 8px" type="success" :disabled="!datasetId" :loading="aiLoading" @click="chat">发送</el-button>
       </el-card>
-    </el-col>
-    <el-col :span="16">
-      <el-card v-loading="previewing || saving || aiLoading">
-        <div class="preview" ref="previewRef">
-          <ChartPanel v-if="option && Object.keys(option).length" :option="option" />
-          <el-empty v-else description="请选择 X 维度、Y 指标生成图表" />
+      <el-card class="pane preview-card" v-loading="previewing || saving || aiLoading">
+        <div class="preview-wrap">
+          <div class="preview" ref="previewRef">
+            <ChartPanel v-if="option && Object.keys(option).length" :option="option" />
+            <el-empty v-else description="请选择 X 维度、Y 指标生成图表" />
+          </div>
         </div>
-        <div class="chart-ops">
+        <div class="preview-toolbar">
           <el-button :disabled="!option" @click="exportPng">导出图表</el-button>
         </div>
-        <ConclusionPanel
-          :text="conclusion || insight"
-          :source="recSource"
-          copyable
-          collapsible
-          empty-text="选择维度并预览或生成后，这里会输出分析结论。"
-        />
-        <el-alert v-for="item in anomalies" :key="item.message" :title="item.message" type="warning" show-icon style="margin-top: 8px" />
+        <div class="preview-meta">
+          <ConclusionPanel
+            :text="conclusion || insight"
+            :source="recSource"
+            copyable
+            collapsible
+            empty-text="选择维度并预览或生成后，这里会输出分析结论。"
+          />
+          <el-alert
+            v-if="anomalies.length"
+            :title="anomalies.length === 1 ? anomalies[0].message : `检测到 ${anomalies.length} 条异常（按偏离程度列出）`"
+            type="warning"
+            show-icon
+            class="anomaly-alert"
+          >
+            <ul v-if="anomalies.length > 1" class="anomaly-list">
+              <li v-for="item in anomalies" :key="item.message">{{ item.message }}</li>
+            </ul>
+          </el-alert>
+        </div>
       </el-card>
-    </el-col>
-  </el-row>
+    </div>
   </div>
 </template>
 
@@ -269,7 +284,7 @@ async function scrollChatToBottom() {
 }
 
 async function chat() {
-  if (!datasetId.value) return;
+  if (!datasetId.value || aiLoading.value) return;
   let text = question.value.trim();
   if (!text || text === EXAMPLE_QUESTION) {
     text = EXAMPLE_QUESTION;
@@ -337,14 +352,58 @@ onMounted(load);
 
 <style scoped>
 .studio-page {
-  min-height: calc(100vh - 88px);
+  height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   position: relative;
 }
+.studio-page .page-header {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+.studio-page .page-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+}
+.studio-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(360px, 400px) 1fr;
+  gap: 16px;
+}
+.pane {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.pane :deep(.el-card__body) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  overflow: hidden;
+}
 .config-card :deep(.el-form-item) {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+}
+.config-card :deep(.el-form-item__label) {
+  font-size: 13px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 8px;
+}
+.form-grid :deep(.el-form-item__label) {
+  width: 64px !important;
 }
 .group-title {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 13px;
   font-weight: 700;
   color: #1e3a8a;
@@ -353,19 +412,99 @@ onMounted(load);
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin: 0 0 8px;
+}
+.studio-ai {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+.rec-wrap {
+  max-height: 72px;
+  overflow: auto;
   margin-bottom: 8px;
 }
-.preview {
-  height: 420px;
-}
-.chart-ops {
-  margin: 12px 0 0;
+.rec-wrap :deep(.el-empty) {
+  padding: 4px 0;
 }
 .chat-log {
-  max-height: 160px;
+  flex: 1;
+  min-height: 72px;
   overflow: auto;
   margin-bottom: 8px;
   font-size: 13px;
+}
+.chat-placeholder {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.composer {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.hint-textarea {
+  flex: 1;
+  min-width: 0;
+}
+.send-btn {
+  margin: 0;
+  height: auto;
+  padding: 0 16px;
+}
+.preview-card :deep(.conclusion) {
+  margin-top: 0;
+  padding: 10px 12px;
+}
+.preview-card :deep(.conclusion .body) {
+  max-height: 88px;
+}
+.preview-card :deep(.conclusion .body.collapsed) {
+  max-height: 56px;
+}
+.preview-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 280px;
+}
+.preview {
+  height: 100%;
+  min-height: 280px;
+}
+.preview :deep(.chart-wrap),
+.preview :deep(.el-empty) {
+  height: 100%;
+  min-height: 280px;
+}
+.preview :deep(.chart-box) {
+  min-height: 280px;
+}
+.preview-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0 0;
+}
+.preview-meta {
+  flex: 0 1 34%;
+  min-height: 0;
+  max-height: 34%;
+  overflow: auto;
+  margin-top: 8px;
+}
+.anomaly-alert {
+  margin-top: 8px;
+}
+.anomaly-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
 }
 .user {
   color: #2563eb;
@@ -375,11 +514,6 @@ onMounted(load);
 }
 .rec {
   cursor: pointer;
-}
-.hint {
-  color: #64748b;
-  font-size: 12px;
-  margin: 0 0 8px;
 }
 .hint-textarea :deep(.el-textarea__inner::placeholder) {
   color: #94a3b8 !important;

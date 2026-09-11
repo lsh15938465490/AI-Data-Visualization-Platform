@@ -67,7 +67,17 @@
           <el-button :disabled="!conclusion" @click="copyReport">复制分析报告</el-button>
         </div>
         <ConclusionPanel :text="typedConclusion" :source="source" copyable collapsible />
-        <el-alert v-for="item in anomalies" :key="item.message" :title="item.message" type="warning" show-icon style="margin-top: 8px" />
+        <el-alert
+          v-if="anomalies.length"
+          :title="anomalies.length === 1 ? anomalies[0].message : `检测到 ${anomalies.length} 条异常（按偏离程度列出）`"
+          type="warning"
+          show-icon
+          style="margin-top: 8px"
+        >
+          <ul v-if="anomalies.length > 1" class="anomaly-list">
+            <li v-for="item in anomalies" :key="item.message">{{ item.message }}</li>
+          </ul>
+        </el-alert>
       </el-card>
     </el-col>
   </el-row>
@@ -418,5 +428,11 @@ onMounted(load);
 .hint-textarea:not(.is-empty) :deep(.el-textarea__inner) {
   color: #0f172a;
   -webkit-text-fill-color: #0f172a;
+}
+.anomaly-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
 }
 </style>

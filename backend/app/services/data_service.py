@@ -210,11 +210,16 @@ def apply_style(option: dict[str, Any], style: dict[str, Any] | None, title: str
             series["areaStyle"] = {"opacity": 0.08}
     categories = (option.get("xAxis") or {}).get("data") or []
     if len(categories) > 12 and option.get("series") and option["series"][0].get("type") != "pie":
+        slider_bottom = 6
         option["dataZoom"] = [
             {"type": "inside", "xAxisIndex": 0},
-            {"type": "slider", "xAxisIndex": 0, "height": 18, "bottom": 8},
+            {"type": "slider", "xAxisIndex": 0, "height": 18, "bottom": slider_bottom, "showDetail": False},
         ]
-        option["grid"] = {**(option.get("grid") or {}), "bottom": 72}
+        if legend == "bottom":
+            option["legend"] = {**(option.get("legend") or {}), "bottom": 32}
+            option["grid"] = {**(option.get("grid") or {}), "bottom": 88}
+        else:
+            option["grid"] = {**(option.get("grid") or {}), "bottom": 48}
     return option
 
 
